@@ -1,0 +1,113 @@
+##
+## This file is managed by the puppet server <%= @servername %>
+## All changes made locally will be overwritten by the puppet server
+## during the next puppet run. Ensure that all changes are applied
+## on the puppet server instead.
+##
+proxy:
+  secretToken: <%= @proxy_secret %>
+  service:
+    type: NodePort
+    nodePorts:
+      http: 30080
+      https: 31338
+  https:
+    enabled: true
+    hosts:
+      - <%= @hostname %>
+    type: secret
+    secret:
+      name: <%= @hostname %>tls
+
+hub:
+  cookieSecret: <%= @hub_secret %>
+  baseUrl: '/${SHORTCOURSE}/'
+  db:
+    url: postgres+psycopg2://postgres:<%= @postgres_passwd %>@pgdatabase${SHORTCOURSE}-postgresql.pgdatabase.svc.cluster.local:5432/jhub${SHORTCOURSE}db
+    type: postgres
+    password: <%= @postgres_passwd %>
+  extraConfig:
+    panlearningConfig: |
+      c.KubeSpawner.uid = <%= @panlearningjhubuid %>
+      c.KubeSpawner.gid = <%= @panlearningjhubgid %>
+      c.KubeSpawner.volumes = [
+        {
+           'name': 'homedir',
+           'hostPath': {
+             'path': '/mnt/panlearningjhub/{username}/courses/$SHORTCOURSE'
+           }
+        },
+        {  
+          'name': 'shareddir',
+          'hostPath': {
+            'path': '/mnt/panlearningjhub/shared'
+          }
+        }
+      ]
+      c.KubeSpawner.volume_mounts = [
+        {
+          'name': 'homedir',
+          'mountPath': '/home/jovyan/'
+        },
+        {
+          'name': 'shareddir',
+          'mountPath': '/home/shared/'
+        }
+      ]
+
+
+singleuser:
+  cpu:
+    limit: $CPU_GUARANTEE
+    guarantee: 0.05
+  memory:
+    limit: $MEM_GUARANTEE
+    guarantee: 512M
+  image:
+    name: $IMAGE_NAME
+    tag: $IMAGE_TAG
+    pullPolicy: Always
+  profileList:
+    - display_name: "Jupyter Course Environment"
+      description: $IMAGE_NAME
+      default: true
+      kubespawner_override:
+        lifecycle_hooks:
+          postStart:
+            exec:
+              command:
+                - "sh"
+                - "-c"
+                - >
+                  printf "[http]\nproxy = http://<%= @proxy_ip %>:<%= @proxy_port %>\n" > .gitconfig;
+                  printf "export http_proxy=http://<%= @proxy_ip %>:<%= @proxy_port %>\nexport https_proxy=http://<%= @proxy_ip %>:<%= @proxy_port %>\n" > .bash_profile;
+                  gitpuller $REQUESTED_GITHUB_REPO_LINK $BRANCH_REQUESTED gitrepo_$SHORTCOURSE;
+  storage:
+    type: none
+# culling old users, unit: seconds    
+cull:
+  enabled: true
+  timeout: 1800
+  every: 300
+
+# allow image to be prepulled
+prePuller:
+  continuous:
+    enabled: true
+    
+# pod priority - scale up nodes ahead of real users arrivals
+# user scheduler - pack users tight on some nodes
+scheduling:
+  userScheduler:
+    enabled: true
+  podPriority:
+    enabled: true
+auth:
+  type: "lti"
+  admin:
+    users:
+      - "313"
+  lti:
+    consumers: { 
+      "<%= @${SHORTCOURSE}clientkey %>": "<%= @${SHORTCOURSE}clientsecret %>"
+      }
