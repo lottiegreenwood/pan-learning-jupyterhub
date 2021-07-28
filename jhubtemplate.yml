@@ -57,6 +57,7 @@ hub:
 
 
 singleuser:
+  defaultUrl: "/notebooks/gitrepo_${SHORTCOURSE}"
   cpu:
     limit: $CPU_GUARANTEE
     guarantee: 0.05
