@@ -106,7 +106,7 @@ auth:
   type: "lti"
   admin:
     users:
-      - "313"
+      - "202"
   lti:
     consumers: { 
       "<%= @${SHORTCOURSE}clientkey %>": "<%= @${SHORTCOURSE}clientsecret %>"
